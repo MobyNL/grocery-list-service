@@ -6,3 +6,10 @@ __pycache__/
 README.md
 alembic/
 build/
+pyproject.toml
+poetry.lock
+.venv
+venv/
+*.egg-info
+.pytest_cache
+*.log
