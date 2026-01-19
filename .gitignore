@@ -49,3 +49,4 @@ alembic/versions/__pycache__/
 .DS_Store
 Thumbs.db
 grocery-list.db
+grocery-list.db

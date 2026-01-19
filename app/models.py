@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
@@ -15,8 +15,10 @@ class GroceryListORM(Base):
     name = Column(String(200), nullable=False)
     description = Column(String(1000), nullable=True)
     owner = Column(String(100), nullable=False, index=True)  # Username from user-service
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    list_date = Column(DateTime, nullable=True)  # Date for the grocery list (e.g., when shopping is planned)
+    is_closed = Column(Boolean, default=False, nullable=False)  # Whether the list is closed/archived
+    created_at = Column(DateTime, default=datetime.now(UTC), nullable=False)
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC), nullable=False)
 
     # Relationship to items
     items = relationship("GroceryItemORM", back_populates="grocery_list", cascade="all, delete-orphan")
@@ -35,8 +37,8 @@ class GroceryItemORM(Base):
     store = Column(String(100), nullable=True)  # e.g., "Walmart", "Target", "Whole Foods"
     notes = Column(String(500), nullable=True)
     purchased = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now(UTC), nullable=False)
+    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC), nullable=False)
 
     # Relationship to parent list
     grocery_list = relationship("GroceryListORM", back_populates="items")

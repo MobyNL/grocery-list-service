@@ -9,6 +9,8 @@ class GroceryListBase(BaseModel):
     """Base schema for grocery list"""
     name: str = Field(..., min_length=1, max_length=200, description="List name")
     description: Optional[str] = Field(None, max_length=1000, description="List description")
+    list_date: Optional[datetime] = Field(None, description="Date for the grocery list")
+    is_closed: bool = Field(default=False, description="Whether the list is closed/archived")
 
     @field_validator('name')
     @classmethod
@@ -34,6 +36,8 @@ class GroceryListUpdate(BaseModel):
     """Schema for updating a grocery list"""
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=1000)
+    list_date: Optional[datetime] = Field(None, description="Date for the grocery list")
+    is_closed: Optional[bool] = Field(None, description="Whether the list is closed/archived")
 
     @field_validator('name')
     @classmethod
@@ -49,6 +53,7 @@ class GroceryList(GroceryListBase):
     """Schema for returning a grocery list"""
     id: int
     owner: str
+    list_date: Optional[datetime]
     created_at: datetime
     updated_at: datetime
 
@@ -124,3 +129,24 @@ class GroceryListWithItems(GroceryList):
 
     class Config:
         from_attributes = True
+
+
+# Item Migration Schemas
+class ItemMigrationRequest(BaseModel):
+    """Schema for migrating items to another list"""
+    item_ids: list[int] = Field(..., description="List of item IDs to migrate")
+    target_list_id: Optional[int] = Field(None, description="ID of target list (if migrating to existing list)")
+    new_list_name: Optional[str] = Field(None, description="Name for new list (if creating new list)")
+    new_list_description: Optional[str] = Field(None, description="Description for new list (if creating new list)")
+
+    @field_validator('item_ids')
+    @classmethod
+    def validate_item_ids(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError('At least one item ID must be provided')
+        return v
+
+
+class CloseListRequest(BaseModel):
+    """Schema for closing a list with optional item migration"""
+    migration: Optional[ItemMigrationRequest] = Field(None, description="Optional migration of unpurchased items")

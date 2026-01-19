@@ -18,12 +18,16 @@ def get_grocery_list(db: Session, list_id: int) -> Optional[GroceryListORM]:
 
 
 def get_grocery_lists_by_owner(
-    db: Session, owner: str, skip: int = 0, limit: int = 100
+    db: Session, owner: str, skip: int = 0, limit: int = 100, include_closed: bool = False
 ) -> list[GroceryListORM]:
     """Get all grocery lists for a specific owner"""
+    query = db.query(GroceryListORM).filter(GroceryListORM.owner == owner)
+
+    if not include_closed:
+        query = query.filter(GroceryListORM.is_closed == False)
+
     return (
-        db.query(GroceryListORM)
-        .filter(GroceryListORM.owner == owner)
+        query
         .order_by(GroceryListORM.updated_at.desc())
         .offset(skip)
         .limit(limit)
@@ -152,3 +156,26 @@ def mark_item_purchased(db: Session, item_id: int, purchased: bool) -> Optional[
     db.commit()
     db.refresh(db_item)
     return db_item
+
+
+def migrate_items_to_list(
+    db: Session, item_ids: list[int], target_list_id: int
+) -> list[GroceryItemORM]:
+    """Migrate items to a different list"""
+    items = db.query(GroceryItemORM).filter(GroceryItemORM.id.in_(item_ids)).all()
+
+    for item in items:
+        item.grocery_list_id = target_list_id
+        item.purchased = False  # Reset purchased status when moving to new list
+
+    db.commit()
+
+    for item in items:
+        db.refresh(item)
+
+    return items
+
+
+def get_items_by_ids(db: Session, item_ids: list[int]) -> list[GroceryItemORM]:
+    """Get multiple items by their IDs"""
+    return db.query(GroceryItemORM).filter(GroceryItemORM.id.in_(item_ids)).all()
