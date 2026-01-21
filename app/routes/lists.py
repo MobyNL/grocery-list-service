@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Union
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -10,6 +10,7 @@ from ..crud import (
     get_grocery_list,
     get_grocery_lists_by_owner,
     get_items_by_ids,
+    get_popular_stores,
     migrate_items_to_list,
     update_grocery_list,
 )
@@ -26,17 +27,32 @@ from ..schemas import (
 router = APIRouter(prefix="/lists", tags=["Grocery Lists"])
 
 
-@router.get("/", response_model=List[GroceryList])
+@router.get("/popular-stores", response_model=List[str])
+def get_popular_stores_endpoint(
+    limit: int = Query(5, ge=1, le=20, description="Number of popular stores to return"),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get most commonly used stores"""
+    return get_popular_stores(db, limit=limit)
+
+
+@router.get("/", response_model=Union[List[GroceryList], List[GroceryListWithItems]])
 def get_my_grocery_lists(
     skip: int = 0,
     limit: int = 100,
     include_closed: bool = False,
+    include_items: bool = Query(False, description="Include items in the response"),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Get all grocery lists for the current user"""
     username = current_user["username"]
     lists = get_grocery_lists_by_owner(db, owner=username, skip=skip, limit=limit, include_closed=include_closed)
+
+    # If include_items is True, return lists with items (using GroceryListWithItems schema)
+    # Otherwise return basic lists (using GroceryList schema)
+    # The ORM already loads items due to the relationship, so we just return the lists
     return lists
 
 

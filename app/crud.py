@@ -1,6 +1,8 @@
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 
 from .models import GroceryItemORM, GroceryListORM
 from .schemas import (
@@ -12,16 +14,30 @@ from .schemas import (
 
 
 # Grocery List CRUD operations
+def get_popular_stores(db: Session, limit: int = 5) -> list[str]:
+    """Get most commonly used stores from grocery items"""
+    results = (
+        db.query(GroceryItemORM.store, func.count(GroceryItemORM.store).label('count'))
+        .filter(GroceryItemORM.store.isnot(None))
+        .filter(GroceryItemORM.store != '')
+        .group_by(GroceryItemORM.store)
+        .order_by(func.count(GroceryItemORM.store).desc())
+        .limit(limit)
+        .all()
+    )
+    return [store for store, count in results]
+
+
 def get_grocery_list(db: Session, list_id: int) -> Optional[GroceryListORM]:
     """Get a single grocery list by ID"""
-    return db.query(GroceryListORM).filter(GroceryListORM.id == list_id).first()
+    return db.query(GroceryListORM).options(joinedload(GroceryListORM.items)).filter(GroceryListORM.id == list_id).first()
 
 
 def get_grocery_lists_by_owner(
     db: Session, owner: str, skip: int = 0, limit: int = 100, include_closed: bool = False
 ) -> list[GroceryListORM]:
     """Get all grocery lists for a specific owner"""
-    query = db.query(GroceryListORM).filter(GroceryListORM.owner == owner)
+    query = db.query(GroceryListORM).options(joinedload(GroceryListORM.items)).filter(GroceryListORM.owner == owner)
 
     if not include_closed:
         query = query.filter(GroceryListORM.is_closed == False)
@@ -39,10 +55,22 @@ def create_grocery_list(
     db: Session, grocery_list: GroceryListCreate, owner: str
 ) -> GroceryListORM:
     """Create a new grocery list"""
+    # Auto-generate name if not provided
+    name = grocery_list.name
+    if not name:
+        parts = []
+        if grocery_list.list_date:
+            parts.append(grocery_list.list_date.strftime('%Y-%m-%d'))
+        if grocery_list.stores:
+            parts.append(grocery_list.stores)
+        name = ' - '.join(parts) if parts else f"List {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
     db_list = GroceryListORM(
-        name=grocery_list.name,
+        name=name,
+        stores=grocery_list.stores,
         description=grocery_list.description,
         owner=owner,
+        list_date=grocery_list.list_date,
     )
     db.add(db_list)
     db.commit()

@@ -7,17 +7,27 @@ from pydantic import BaseModel, Field, field_validator
 # Grocery List Schemas
 class GroceryListBase(BaseModel):
     """Base schema for grocery list"""
-    name: str = Field(..., min_length=1, max_length=200, description="List name")
+    name: Optional[str] = Field(None, min_length=1, max_length=200, description="List name (optional - auto-generated if not provided)")
+    stores: Optional[str] = Field(None, max_length=500, description="Comma-separated list of stores")
     description: Optional[str] = Field(None, max_length=1000, description="List description")
     list_date: Optional[datetime] = Field(None, description="Date for the grocery list")
     is_closed: bool = Field(default=False, description="Whether the list is closed/archived")
 
     @field_validator('name')
     @classmethod
-    def name_must_not_be_empty(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError('Name cannot be empty or whitespace only')
-        return v.strip()
+    def name_must_not_be_empty(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not v.strip():
+                raise ValueError('Name cannot be empty or whitespace only')
+            return v.strip()
+        return v
+
+    @field_validator('stores')
+    @classmethod
+    def stores_strip(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            return v.strip() if v.strip() else None
+        return None
 
     @field_validator('description')
     @classmethod
@@ -52,6 +62,8 @@ class GroceryListUpdate(BaseModel):
 class GroceryList(GroceryListBase):
     """Schema for returning a grocery list"""
     id: int
+    name: str  # Always present in response (auto-generated if not provided)
+    stores: Optional[str]
     owner: str
     list_date: Optional[datetime]
     created_at: datetime
