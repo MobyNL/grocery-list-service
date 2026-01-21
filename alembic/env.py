@@ -24,13 +24,28 @@ from app.models import Base
 
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url with environment variable
+# Determine if we should use schema (PostgreSQL) or not (SQLite)
+database_url_check = os.getenv("DATABASE_URL", "")
+if not database_url_check:
+    database_url_check = config.get_main_option("sqlalchemy.url", "")
+use_schema = database_url_check.startswith("postgresql")
+
+# Override sqlalchemy.url with environment variable if it's PostgreSQL
+# This allows DATABASE_URL to override prod config when set
 database_url = os.getenv("DATABASE_URL")
-if database_url:
-    # Use standard psycopg2 for synchronous operations
+if database_url and database_url.startswith("postgresql"):
+    # Use standard psycopg2 for PostgreSQL synchronous operations
     if database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
     config.set_main_option("sqlalchemy.url", database_url)
+elif not config.get_main_option("sqlalchemy.url"):
+    # If no DATABASE_URL and no sqlalchemy.url in config, raise error
+    raise ValueError(
+        "DATABASE URL not configured. Either:\n"
+        "  1. Use named section: alembic -n test upgrade head\n"
+        "  2. Set DATABASE_URL environment variable\n"
+        "  3. Set sqlalchemy.url in alembic.ini"
+    )
 
 
 def run_migrations_offline() -> None:
@@ -46,12 +61,19 @@ def run_migrations_offline() -> None:
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
+    context_kwargs = {
+        "url": url,
+        "target_metadata": target_metadata,
+        "literal_binds": True,
+        "dialect_opts": {"paramstyle": "named"},
+    }
+    
+    # Add schema configuration only for PostgreSQL
+    if use_schema:
+        context_kwargs["version_table_schema"] = "grocery_service"
+        context_kwargs["include_schemas"] = True
+    
+    context.configure(**context_kwargs)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -71,7 +93,17 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context_kwargs = {
+            "connection": connection,
+            "target_metadata": target_metadata,
+        }
+        
+        # Add schema configuration only for PostgreSQL
+        if use_schema:
+            context_kwargs["version_table_schema"] = "grocery_service"
+            context_kwargs["include_schemas"] = True
+        
+        context.configure(**context_kwargs)
 
         with context.begin_transaction():
             context.run_migrations()

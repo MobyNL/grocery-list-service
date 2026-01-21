@@ -13,15 +13,20 @@ DATABASE_URL: str | None = os.getenv("DATABASE_URL")
 if DATABASE_URL is None:
     raise ValueError("DATABASE_URL environment variable is not set")
 
-# Use standard psycopg2 for synchronous operations
+# Use standard psycopg2 for PostgreSQL synchronous operations
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://")
 
-engine: Engine = create_engine(
-    DATABASE_URL,
-    echo=True,
-    pool_pre_ping=True,
-)
+# Configure engine based on database type
+engine_kwargs = {
+    "echo": True,
+}
+
+# Only use pool_pre_ping for PostgreSQL (not needed for SQLite)
+if not DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["pool_pre_ping"] = True
+
+engine: Engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 SessionLocal: sessionmaker[Session] = sessionmaker(
     autocommit=False, autoflush=False, bind=engine

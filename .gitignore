@@ -29,6 +29,12 @@ env/
 # Environment variables
 .env
 .env.local
+.env.prod
+
+# Database files
+grocery-list.db
+grocery_test.db
+*.db
 
 # IDEs
 .vscode/
@@ -48,5 +54,3 @@ alembic/versions/__pycache__/
 # OS
 .DS_Store
 Thumbs.db
-grocery-list.db
-grocery-list.db

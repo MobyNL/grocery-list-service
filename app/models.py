@@ -1,3 +1,4 @@
+import os
 from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float
@@ -6,10 +7,16 @@ from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
+# Use schema only for PostgreSQL
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+USE_SCHEMA = DATABASE_URL.startswith("postgresql")
+SCHEMA_NAME = "grocery_service" if USE_SCHEMA else None
+
 
 class GroceryListORM(Base):
     """Grocery list model - users can have multiple lists"""
     __tablename__ = "grocery_lists"
+    __table_args__ = {"schema": SCHEMA_NAME} if SCHEMA_NAME else {}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
@@ -27,6 +34,7 @@ class GroceryListORM(Base):
 class GroceryItemORM(Base):
     """Individual grocery item within a list"""
     __tablename__ = "grocery_items"
+    __table_args__ = {"schema": SCHEMA_NAME} if SCHEMA_NAME else {}
 
     id = Column(Integer, primary_key=True, index=True)
     grocery_list_id = Column(Integer, ForeignKey("grocery_lists.id", ondelete="CASCADE"), nullable=False)
