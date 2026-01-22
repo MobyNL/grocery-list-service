@@ -56,9 +56,9 @@ def create_grocery_list(
 ) -> GroceryListORM:
     """Create a new grocery list"""
     # Auto-generate name if not provided
-    name = grocery_list.name
+    name: Optional[str] = grocery_list.name
     if not name:
-        parts = []
+        parts: list[str] = []
         if grocery_list.list_date:
             parts.append(grocery_list.list_date.strftime('%Y-%m-%d'))
         if grocery_list.stores:
